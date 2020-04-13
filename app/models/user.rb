@@ -3,6 +3,7 @@ class User < ApplicationRecord
   validates :encrypted_password, presence: true
 
   has_many :items, -> { order 'created_at desc' }, foreign_key: 'user_uuid'
+  has_many :sessions, -> { order 'created_at desc' }, foreign_key: 'user_uuid'
 
   def serializable_hash(options = {})
     super(options.merge(only: ['email', 'uuid']))
@@ -110,5 +111,9 @@ class User < ApplicationRecord
       item.content.bytesize
     end
     sorted.reverse.map { |item| { uuid: item.uuid, size: bytes_to_megabytes(item.content.bytesize) } }
+  end
+
+  def active_sessions
+    sessions.where('expiration > ?' , DateTime.now)
   end
 end

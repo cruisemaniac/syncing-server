@@ -71,9 +71,7 @@ class Api::AuthController < Api::ApiController
     user.num_failed_attempts = 0
     user.save
   end
-
-  MAX_LOCKOUT = 3600 # 1 Hour
-  MAX_ATTEMPTS = 6 # Per hour
+  
   def handle_failed_auth_attempt
     # current_user is only available to jwt requests (change_password)
     user = current_user || User.find_by_email(params[:email])
@@ -81,9 +79,9 @@ class Api::AuthController < Api::ApiController
 
     user.num_failed_attempts = 0 unless user.num_failed_attempts
     user.num_failed_attempts += 1
-    if user.num_failed_attempts >= MAX_ATTEMPTS
+    if user.num_failed_attempts >= Rails.application.config.x.auth[:max_attempts_per_hour]
       user.num_failed_attempts = 0
-      user.locked_until = DateTime.now + MAX_LOCKOUT.seconds
+      user.locked_until = DateTime.now + Rails.application.config.x.auth[:max_lockout].seconds
     end
 
     user.save
@@ -216,5 +214,9 @@ class Api::AuthController < Api::ApiController
       pw_nonce: Digest::SHA2.hexdigest(email + Rails.application.secrets.secret_key_base),
       version: '003',
     }
+  end
+
+  def sign_out
+    render json: { }, status: :no_content
   end
 end
