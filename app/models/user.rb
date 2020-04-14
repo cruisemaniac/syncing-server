@@ -114,6 +114,10 @@ class User < ApplicationRecord
   end
 
   def active_sessions
-    sessions.where('expiration > ?' , DateTime.now)
+    sessions.where('expire_at > ?', DateTime.now).to_a.map(&:serializable_hash)
+  end
+
+  def parse_version
+    version.to_i
   end
 end

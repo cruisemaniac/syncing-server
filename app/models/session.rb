@@ -1,8 +1,11 @@
 class Session < ApplicationRecord
   validates :user_agent, length: { in: 0..255, allow_nil: true }
-  before_create :set_expire_at
+  validates :api_version, inclusion: { in: %w(20200115) }
+
   has_secure_token :access_token
   has_secure_token :refresh_token
+
+  before_create :set_expire_at
 
   def serializable_hash(options = {})
     allowed_options = [
@@ -27,6 +30,11 @@ class Session < ApplicationRecord
   def regenerate_tokens
     regenerate_access_token
     regenerate_refresh_token
+    set_expire_at
+  end
+
+  def is_expired?
+    expire_at < DateTime.now
   end
 
   private

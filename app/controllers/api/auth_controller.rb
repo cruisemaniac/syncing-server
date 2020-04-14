@@ -71,7 +71,7 @@ class Api::AuthController < Api::ApiController
     user.num_failed_attempts = 0
     user.save
   end
-  
+
   def handle_failed_auth_attempt
     # current_user is only available to jwt requests (change_password)
     user = current_user || User.find_by_email(params[:email])
@@ -217,6 +217,8 @@ class Api::AuthController < Api::ApiController
   end
 
   def sign_out
-    render json: { }, status: :no_content
+    current_session&.destroy
+
+    render json: {}, status: :no_content
   end
 end

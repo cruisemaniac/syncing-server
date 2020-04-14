@@ -7,7 +7,7 @@ module SyncEngine
     def sign_in(email, password)
       user = @user_class.find_by_email(email)
       if user && test_password(password, user.encrypted_password)
-        { user: user, token: jwt(user) }
+        create_session user
       else
         { error: { message: 'Invalid email or password.', status: 401 } }
       end
@@ -20,19 +20,33 @@ module SyncEngine
       else
         user = @user_class.new(email: email, encrypted_password: hash_password(password))
         user.update!(registration_params(params))
-        { user: user, token: jwt(user) }
+        create_session user
       end
     end
 
     def change_pw(user, password, params)
       user.encrypted_password = hash_password(password)
       user.update!(registration_params(params))
-      { user: user, token: jwt(user) }
+
+      result = { user: user }
+
+      if user.parse_version < 4
+        result.token = jwt(user)
+      end
+
+      result
     end
 
     def update(user, params)
       user.update!(registration_params(params))
-      { user: user, token: jwt(user) }
+
+      result = { user: user }
+
+      if user.parse_version < 4
+        result.token = jwt(user)
+      end
+
+      result
     end
 
     def auth_params(email)
@@ -86,6 +100,31 @@ module SyncEngine
 
     def registration_params(params)
       params.permit(:pw_func, :pw_alg, :pw_cost, :pw_key_size, :pw_nonce, :pw_salt, :version)
+    end
+
+    def create_session(user)
+      if user.parse_version < 4
+        return render json: { user: user, token: jwt(user) }
+      end
+
+      session = Session.new(user_uuid: user.uuid, user_agent: request.user_agent, api_version: params[:api_version])
+
+      unless session.save
+        return render json: { error: { message: 'Could not create a session.', status: :bad_request } }
+      end
+
+      tokens = {
+        access_token: {
+          value: session.access_token,
+          expiration: session.access_token_expire_at,
+        },
+        refresh_token: {
+          value: session.refresh_token,
+          expiration: session.refresh_token_expire_at,
+        },
+      }
+
+      render json: { user: user, tokens: tokens }
     end
   end
 end
