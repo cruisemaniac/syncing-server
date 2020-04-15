@@ -30,8 +30,8 @@ module SyncEngine
 
       result = { user: user }
 
-      if user.parse_version < 4
-        result.token = jwt(user)
+      if user.supports_jwt?
+        result[:token] = jwt(user)
       end
 
       result
@@ -42,8 +42,8 @@ module SyncEngine
 
       result = { user: user }
 
-      if user.parse_version < 4
-        result.token = jwt(user)
+      if user.supports_jwt?
+        result[:token] = jwt(user)
       end
 
       result
@@ -103,14 +103,14 @@ module SyncEngine
     end
 
     def create_session(user)
-      if user.parse_version < 4
-        return render json: { user: user, token: jwt(user) }
+      if user.supports_jwt?
+        return { user: user, token: jwt(user) }
       end
 
       session = Session.new(user_uuid: user.uuid, user_agent: request.user_agent, api_version: params[:api_version])
 
       unless session.save
-        return render json: { error: { message: 'Could not create a session.', status: :bad_request } }
+        return { error: { message: 'Could not create a session.', status: :bad_request } }
       end
 
       tokens = {
@@ -124,7 +124,7 @@ module SyncEngine
         },
       }
 
-      render json: { user: user, tokens: tokens }
+      { user: user, tokens: tokens }
     end
   end
 end

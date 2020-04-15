@@ -41,8 +41,19 @@ class Api::ApiController < ApplicationController
       return
     end
 
-    if authentication[:type] == 'jwt' && params[:api_version].to_i >= 20190520 && user.parse_version >= 4
+    if authentication[:type] == 'jwt' && params[:api_version].to_i >= 20190520 && user.supports_sessions?
       render_invalid_auth
+      return
+    end
+
+    if authentication[:type] == 'session_token' && authentication[:session].is_expired?
+      render json: {
+        error: {
+          tag: 'expired-access-token',
+          message: 'The provided access token has expired.',
+        },
+      }, status: :unauthorized
+
       return
     end
 

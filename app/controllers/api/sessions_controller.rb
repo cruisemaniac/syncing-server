@@ -1,5 +1,4 @@
 class Api::SessionsController < Api::ApiController
-  skip_before_action :authenticate_user, except: [:refresh]
   respond_to :json
 
   before_action do
@@ -48,7 +47,7 @@ class Api::SessionsController < Api::ApiController
       return
     end
 
-    session = Sessions.where('refresh_token = ?', params[:refresh_token]).first
+    session = Sessions.where('uuid = ? AND refresh_token = ?', current_session.uuid, params[:refresh_token]).first
 
     if session.nil?
       render json: {

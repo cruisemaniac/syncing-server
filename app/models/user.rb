@@ -117,7 +117,11 @@ class User < ApplicationRecord
     sessions.where('expire_at > ?', DateTime.now).to_a.map(&:serializable_hash)
   end
 
-  def parse_version
-    version.to_i
+  def supports_jwt?
+    version.to_i < 4
+  end
+
+  def supports_sessions?
+    version.to_i >= 4
   end
 end
