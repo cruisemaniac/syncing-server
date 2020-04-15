@@ -4,23 +4,28 @@ module SyncEngine
       @user_class = user_class
     end
 
-    def sign_in(email, password)
+    def verify_credentials(email, password)
       user = @user_class.find_by_email(email)
-      if user && test_password(password, user.encrypted_password)
-        create_session user
+      user && test_password(password, user.encrypted_password)
+    end
+
+    def sign_in(email, password, api_version, user_agent)
+      user = @user_class.find_by_email(email)
+      if verify_credentials(email, password)
+        create_session(user, api_version, user_agent)
       else
         { error: { message: 'Invalid email or password.', status: 401 } }
       end
     end
 
-    def register(email, password, params)
+    def register(email, password, params, user_agent = '')
       user = @user_class.find_by_email(email)
       if user
         { error: { message: 'This email is already registered.', status: 401 } }
       else
         user = @user_class.new(email: email, encrypted_password: hash_password(password))
         user.update!(registration_params(params))
-        create_session user
+        create_session(user, params[:api_version], user_agent)
       end
     end
 
@@ -102,12 +107,12 @@ module SyncEngine
       params.permit(:pw_func, :pw_alg, :pw_cost, :pw_key_size, :pw_nonce, :pw_salt, :version)
     end
 
-    def create_session(user)
+    def create_session(user, api_version, user_agent)
       if user.supports_jwt?
         return { user: user, token: jwt(user) }
       end
 
-      session = Session.new(user_uuid: user.uuid, user_agent: request.user_agent, api_version: params[:api_version])
+      session = Session.new(user_uuid: user.uuid, api_version: api_version, user_agent: user_agent)
 
       unless session.save
         return { error: { message: 'Could not create a session.', status: :bad_request } }

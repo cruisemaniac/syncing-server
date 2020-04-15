@@ -97,7 +97,7 @@ class Api::AuthController < Api::ApiController
       return render_invalid_auth
     end
 
-    result = @user_manager.sign_in(params[:email], params[:password])
+    result = @user_manager.sign_in(params[:email], params[:password], params[:api_version], request.user_agent)
     if result[:error]
       handle_failed_auth_attempt
       render json: result, status: 401
@@ -120,7 +120,7 @@ class Api::AuthController < Api::ApiController
       params[:version] = '002'
     end
 
-    result = @user_manager.register(params[:email], params[:password], params)
+    result = @user_manager.register(params[:email], params[:password], params, request.user_agent)
     if result[:error]
       render json: result, status: 401
     else
@@ -158,8 +158,8 @@ class Api::AuthController < Api::ApiController
     end
 
     # Verify current password first
-    sign_in_result = @user_manager.sign_in(current_user.email, params[:current_password])
-    if sign_in_result[:error]
+    valid_credentials = @user_manager.verify_credentials(current_user.email, params[:current_password])
+    if !valid_credentials
       handle_failed_auth_attempt
       render json: {
         error: {

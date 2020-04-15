@@ -93,7 +93,7 @@ class Api::SessionsController < Api::ApiController
     render json: {
       error: {
         tag: 'unsupported-account-version',
-        message: 'Account version not supported',
+        message: 'Account version not supported.',
       },
     }, status: :bad_request
   end
