@@ -1,5 +1,5 @@
 class Api::AuthController < Api::ApiController
-  skip_before_action :authenticate_user, except: [:change_pw, :update]
+  skip_before_action :authenticate_user, except: [:change_pw, :update, :sign_out]
 
   before_action do
     # current_user can still be nil by here.
@@ -159,7 +159,7 @@ class Api::AuthController < Api::ApiController
 
     # Verify current password first
     valid_credentials = @user_manager.verify_credentials(current_user.email, params[:current_password])
-    if !valid_credentials
+    unless valid_credentials
       handle_failed_auth_attempt
       render json: {
         error: {

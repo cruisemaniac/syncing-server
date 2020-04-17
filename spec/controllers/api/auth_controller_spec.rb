@@ -7,12 +7,16 @@ RSpec.describe Api::AuthController, type: :controller do
     build(:user, password: test_password)
   end
 
-  before(:each) do
-    test_user.save
+  let(:test_user_004) do
+    build(:user, password: test_password, version: '004')
   end
 
   let(:test_user_credentials) do
     { email: test_user.email, password: test_password }
+  end
+
+  let(:test_user_004_credentials) do
+    { email: test_user_004.email, password: test_password, api_version: '20200115' }
   end
 
   let(:auth_params_keys) do
@@ -414,6 +418,56 @@ RSpec.describe Api::AuthController, type: :controller do
         expect(parsed_response_body).to_not be_nil
         expect(parsed_response_body['error']).to_not be_nil
         expect(parsed_response_body['error']['message']).to eq('Invalid login credentials.')
+      end
+    end
+  end
+
+  describe 'POST auth/sign_out' do
+    context 'when not signed in' do
+      it 'should return unauthorized error' do
+        expect do
+          post :sign_out
+
+          expect(response).to have_http_status(:unauthorized)
+          expect(response.headers['Content-Type']).to eq('application/json; charset=utf-8')
+          parsed_response_body = JSON.parse(response.body)
+
+          expect(parsed_response_body).to_not be_nil
+          expect(parsed_response_body['error']).to_not be_nil
+          expect(parsed_response_body['error']['message']).to eq('Invalid login credentials.')
+        end.to change(Session, :count).by(0)
+      end
+    end
+
+    context 'and user has an account version < 004' do
+      it 'should return no response and no sessions should be deleted' do
+        post :sign_in, params: test_user_credentials
+        access_token = JSON.parse(response.body)['token']
+
+        expect do
+          request.headers['Authorization'] = "bearer #{access_token}"
+          post :sign_out
+
+          expect(response).to have_http_status(:no_content)
+          parsed_response_body = JSON.parse(response.body)
+          expect(parsed_response_body).to eq({})
+        end.to change(Session, :count).by(0)
+      end
+    end
+
+    context 'and user has an account version >= 004' do
+      it 'should return no response and the session should be deleted' do
+        post :sign_in, params: test_user_004_credentials
+        access_token = JSON.parse(response.body)['token']
+
+        expect do
+          request.headers['Authorization'] = "bearer #{access_token}"
+          post :sign_out
+
+          expect(response).to have_http_status(:no_content)
+          parsed_response_body = JSON.parse(response.body)
+          expect(parsed_response_body).to eq({})
+        end.to change(Session, :count).by(-1)
       end
     end
   end

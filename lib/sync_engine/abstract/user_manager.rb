@@ -121,15 +121,15 @@ module SyncEngine
       tokens = {
         access_token: {
           value: session.access_token,
-          expiration: session.access_token_expire_at,
+          expire_at: session.access_token_expire_at,
         },
         refresh_token: {
           value: session.refresh_token,
-          expiration: session.refresh_token_expire_at,
+          expire_at: session.refresh_token_expire_at,
         },
       }
 
-      { user: user, tokens: tokens }
+      { user: user, token: tokens[:access_token][:value], tokens: tokens }
     end
   end
 end

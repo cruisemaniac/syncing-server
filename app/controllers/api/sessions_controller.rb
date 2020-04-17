@@ -4,20 +4,19 @@ class Api::SessionsController < Api::ApiController
   before_action do
     if current_session.nil?
       render_unsupported_account_version
-      return
     end
   end
 
   def active_sessions
     sessions = current_user.active_sessions
-    sessions.each { |session| session[:current] = current_session.uuid == session.uuid }
+    sessions.each { |session| session[:current] = current_session.uuid == session['uuid'] }
 
-    render json: sessions, status: :ok
+    render json: { active_sessions: sessions }, status: :ok
   end
 
   def delete
     unless params[:uuid]
-      render json: { error: { message: 'Please provide the session uuid.' } }, status: :bad_request
+      render json: { error: { message: 'Please provide the session UUID.' } }, status: :bad_request
       return
     end
 
@@ -26,7 +25,14 @@ class Api::SessionsController < Api::ApiController
       return
     end
 
-    current_user.sessions.where(uuid: params[:uuid]).destroy
+    session = current_user.sessions.where(uuid: params[:uuid]).first
+
+    unless session
+      render json: { error: { message: 'No session exist with the provided UUID.' } }, status: :bad_request
+      return
+    end
+
+    session.destroy
 
     render json: {}, status: :no_content
   end
@@ -47,9 +53,9 @@ class Api::SessionsController < Api::ApiController
       return
     end
 
-    session = Sessions.where('uuid = ? AND refresh_token = ?', current_session.uuid, params[:refresh_token]).first
+    session = Session.where('uuid = ? AND refresh_token = ?', current_session.uuid, params[:refresh_token]).first
 
-    if session.nil?
+    unless session
       render json: {
         error: {
           tag: 'invalid-refresh-token',
@@ -60,27 +66,16 @@ class Api::SessionsController < Api::ApiController
       return
     end
 
-    if session.is_expired?
-      render json: {
-        error: {
-          tag: 'expired-refresh-token',
-          message: 'The provided refresh token has expired.',
-        },
-      }, status: :unauthorized
-
-      return
-    end
-
     session.regenerate_tokens
 
     tokens = {
       access_token: {
         value: current_session.access_token,
-        expiration: current_session.access_token_expire_at,
+        expire_at: current_session.access_token_expire_at,
       },
       refresh_token: {
         value: current_session.refresh_token,
-        expiration: current_session.refresh_token_expire_at,
+        expire_at: current_session.refresh_token_expire_at,
       },
     }
 
@@ -96,5 +91,7 @@ class Api::SessionsController < Api::ApiController
         message: 'Account version not supported.',
       },
     }, status: :bad_request
+
+    nil
   end
 end

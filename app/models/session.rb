@@ -20,7 +20,7 @@ class Session < ApplicationRecord
   end
 
   def access_token_expire_at
-    expire_at - config[:refresh_token_expiration_time] + config[:access_token_expiration_time]
+    expire_at - refresh_token_expiration_time + access_token_expiration_time
   end
 
   def refresh_token_expire_at
@@ -43,7 +43,15 @@ class Session < ApplicationRecord
     Rails.application.config.x.session
   end
 
+  def refresh_token_expiration_time
+    config[:refresh_token_expiration_time].seconds
+  end
+
+  def access_token_expiration_time
+    config[:access_token_expiration_time].seconds
+  end
+
   def set_expire_at
-    self.expire_at = DateTime.now + config[:refresh_token_expiration_time]
+    self.expire_at = DateTime.now + refresh_token_expiration_time
   end
 end
