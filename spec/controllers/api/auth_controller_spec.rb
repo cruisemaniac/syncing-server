@@ -471,4 +471,84 @@ RSpec.describe Api::AuthController, type: :controller do
       end
     end
   end
+
+  describe 'existing users authentication' do
+    let(:existing_user) do
+      build(:user, password: test_password)
+    end
+
+    before do
+      user_manager = SyncEngine::V20200115::UserManager.new(User)
+      sign_in_result = user_manager.sign_in(existing_user.email, test_password, '20200115', 'Fake UA')
+      @jwt = sign_in_result[:token]      
+    end 
+
+    context 'when api_version is 20200115' do
+      context 'and user version is <= 003' do
+        context 'and a valid JWT is provided' do
+          it 'should authenticate successfully' do
+            expect(existing_user.version).to eq('003')
+
+            @controller = Api::ItemsController.new
+            request.headers['Authorization'] = "bearer #{@jwt}"
+
+            new_item = { content: 'Test', content_type: 'Note' }
+            post :create, params: { item: new_item, api_version: '20200115' }
+
+            expect(response).to have_http_status(:ok)
+            expect(response.headers['Content-Type']).to eq('application/json; charset=utf-8')
+          end
+        end
+      end
+
+      context 'and user version is >= 004' do
+        context 'and a valid JWT is provided' do
+          it 'should reject the request' do
+            # Upgrading to new version 004
+            user_manager = SyncEngine::V20200115::UserManager.new(User)
+            change_pw_params = ActionController::Parameters.new(version: '004')
+            user_manager.change_pw(existing_user, test_password, change_pw_params)
+          
+            test_user.reload
+            expect(existing_user.version).to eq('004')
+
+            # Authenticating with the above JWT
+            @controller = Api::ItemsController.new
+            request.headers['Authorization'] = "bearer #{@jwt}"
+
+            new_item = { content: 'Test', content_type: 'Note' }
+            post :create, params: { item: new_item, api_version: '20200115' }
+
+            expect(response).to have_http_status(:unauthorized)
+            expect(response.headers['Content-Type']).to eq('application/json; charset=utf-8')
+          end
+        end
+      end
+    end
+
+    context 'when api_version is 20190520' do
+      context 'and user version >= 004' do
+        context 'and a valid JWT is provided' do
+          it 'should reject the request' do
+            # Upgrading to new version 004
+            user_manager = SyncEngine::V20200115::UserManager.new(User)
+            change_pw_params = ActionController::Parameters.new(version: '004')
+            user_manager.change_pw(existing_user, test_password, change_pw_params)
+          
+            test_user.reload
+            expect(existing_user.version).to eq('004')
+
+            @controller = Api::ItemsController.new
+            request.headers['Authorization'] = "bearer #{@jwt}"
+
+            new_item = { content: 'Test', content_type: 'Note' }
+            post :create, params: { item: new_item, api_version: '20190520' }
+
+            expect(response).to have_http_status(:unauthorized)
+            expect(response.headers['Content-Type']).to eq('application/json; charset=utf-8')
+          end
+        end
+      end
+    end
+  end
 end
