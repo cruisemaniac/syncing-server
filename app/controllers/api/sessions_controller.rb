@@ -53,7 +53,7 @@ class Api::SessionsController < Api::ApiController
       return
     end
 
-    session = Session.where('uuid = ? AND refresh_token = ?', current_session.uuid, params[:refresh_token]).first
+    session = current_user.sessions.where('refresh_token = ?', params[:refresh_token]).first
 
     unless session
       render json: {

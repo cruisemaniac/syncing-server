@@ -442,7 +442,6 @@ RSpec.describe Api::SessionsController, type: :controller do
             current_session.reload
             expect(current_session.access_token).to_not eq(access_token)
             expect(current_session.refresh_token).to_not eq(refresh_token)
-            expect(current_session.expire_at.utc.to_date).to eq(DateTime.now.utc.to_date + 1.years)
           end
         end
       end
